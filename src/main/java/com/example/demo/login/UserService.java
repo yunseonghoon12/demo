@@ -4,6 +4,8 @@ import com.example.demo.user.User;
 import com.example.demo.user.UserRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 @Service
 public class UserService {
 
@@ -13,10 +15,9 @@ public class UserService {
         this.userRepository = userRepository;
     }
 
-    public boolean login(String username, String password) {
+    public Optional<User> login(String username, String password) {
         return userRepository.findByUsername(username)
                 .filter(User::isEnabled)
-                .map(user -> user.getPassword().equals(password))
-                .orElse(false);
+                .filter(user -> user.getPassword().equals(password));
     }
 }

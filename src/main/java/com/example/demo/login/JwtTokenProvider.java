@@ -1,6 +1,8 @@
 package com.example.demo.login;
 
 import com.example.demo.user.User;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,7 +25,7 @@ public class JwtTokenProvider {
             @Value("${jwt.secret}") String secret,
             @Value("${jwt.expiration-ms}") long expirationMs,
             @Value("${jwt.cookie-name}") String cookieName) {
-        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8)); // 스크릿키로 변환
         this.expirationMs = expirationMs;
         this.cookieName = cookieName;
     }
@@ -47,5 +49,30 @@ public class JwtTokenProvider {
                 .path("/")
                 .maxAge(Duration.ofMillis(expirationMs))
                 .build();
+    }
+
+    public boolean validateToken(String token) {
+        try {
+            parseClaims(token);
+            return true;
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    public String getUsername(String token) {
+        return parseClaims(token).getSubject();
+    }
+
+    public Long getUserId(String token) {
+        return parseClaims(token).get("userId", Long.class);
+    }
+
+    private Claims parseClaims(String token) {
+        return Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 }

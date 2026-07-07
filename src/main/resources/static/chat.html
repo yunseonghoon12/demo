@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>WebSocket Chat</title>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
+        #status { margin-bottom: 1rem; color: #666; }
+        #messages { border: 1px solid #ccc; height: 300px; overflow-y: auto; padding: 0.5rem; margin-bottom: 1rem; }
+        #messages p { margin: 0.25rem 0; }
+        .controls { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+        input[type="text"] { flex: 1; padding: 0.5rem; }
+        button { padding: 0.5rem 1rem; cursor: pointer; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Chat</h1>
+    <p id="status">연결 안 됨</p>
+
+    <div class="controls">
+        <button id="connectBtn">연결</button>
+        <button id="disconnectBtn" disabled>연결 해제</button>
+    </div>
+
+    <div id="messages"></div>
+
+    <div class="controls">
+        <input type="text" id="sender" placeholder="보낸 사람" value="user1">
+        <input type="text" id="content" placeholder="메시지 입력">
+        <button id="sendBtn" disabled>전송</button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <script>
+        let stompClient = null;
+
+        const statusEl = document.getElementById('status');
+        const messagesEl = document.getElementById('messages');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const sendBtn = document.getElementById('sendBtn');
+        const senderInput = document.getElementById('sender');
+        const contentInput = document.getElementById('content');
+
+        function setConnected(connected) {
+            connectBtn.disabled = connected;
+            disconnectBtn.disabled = !connected;
+            sendBtn.disabled = !connected;
+            senderInput.disabled = connected;
+            statusEl.textContent = connected ? '연결됨' : '연결 안 됨';
+        }
+
+        function appendMessage(sender, content) {
+            const p = document.createElement('p');
+            p.textContent = '[' + sender + '] ' + content;
+            messagesEl.appendChild(p);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        function connect() {
+            const socket = new SockJS('/ws'); //registry.addEndpoint("/ws") 와 연결됨
+            stompClient = Stomp.over(socket); //SockJS 위에 STOMP 프로토콜을 올려서 사용
+            stompClient.debug = null; // 원래 로그에 CONNECT / DISCONNECT 등의 로그가 엄청 출력되는데 비활성화
+
+            stompClient.connect({}, function () {
+                setConnected(true); //연결 성공처리
+                stompClient.subscribe('/sub/chat', function (message) { // 채널구독
+                    const body = JSON.parse(message.body);
+                    appendMessage(body.sender, body.content);
+                });
+            }, function () {
+                setConnected(false);
+                statusEl.textContent = '연결 실패';
+            });
+        }
+
+        function disconnect() {
+            if (stompClient !== null) {
+                stompClient.disconnect();
+                stompClient = null;
+            }
+            setConnected(false);
+        }
+
+        function sendMessage() {
+            const sender = senderInput.value.trim();
+            const content = contentInput.value.trim();
+            if (!sender || !content) return;
+
+            stompClient.send('/pub/chat', {}, JSON.stringify({ sender: sender, content: content }));
+            contentInput.value = '';
+        }
+
+        connectBtn.addEventListener('click', connect);
+        disconnectBtn.addEventListener('click', disconnect);
+        sendBtn.addEventListener('click', sendMessage);
+        contentInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') sendMessage();
+        });
+    </script>
+</body>
+</html>

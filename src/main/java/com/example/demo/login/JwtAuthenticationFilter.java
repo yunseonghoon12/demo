@@ -29,13 +29,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
+        String method = request.getMethod();
         String path = request.getRequestURI();
 
-        if ("POST".equalsIgnoreCase(request.getMethod()) && "/login".equals(path)) {
-            return true;
-        }
-
-        return "GET".equalsIgnoreCase(request.getMethod()) && "/".equals(path);
+        return ("POST".equalsIgnoreCase(method) && "/login".equals(path))
+            || ("GET".equalsIgnoreCase(method) && "/".equals(path))
+            || path.startsWith("/ws")
+            || path.equals("/chat.html"); //채팅 테스트 페이지는 인증 없이 접근 가능
     }
 
 
